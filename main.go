@@ -11,7 +11,6 @@ func main() {
 	if store, err = NewPostgresStore(); err != nil {
 		log.Fatal(err)
 	}
-	
 
 	if err := store.Init(); err != nil {
 		log.Fatal(err)

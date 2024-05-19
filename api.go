@@ -14,8 +14,8 @@ type APIError struct {
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
+	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
 	return json.NewEncoder(w).Encode(v)
 }
 
@@ -29,39 +29,58 @@ func makeHTTPHandleFunc(f APIFunc) http.HandlerFunc {
 
 type APIServer struct {
 	listenAddr string
+	store Storage
 }
 
-func NewAPIServer(listenAddr string) *APIServer {
+func NewAPIServer(listenAddr string, store Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
+		store: store,
 	}
 }
 
 func (as *APIServer) Run() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /api/accounts", makeHTTPHandleFunc(as.handleGetAllAccount))
-	mux.HandleFunc("GET /api/accounts/{id}", makeHTTPHandleFunc(as.handleGetAccount))
-	mux.HandleFunc("POST /api/accounts", makeHTTPHandleFunc(as.handleCreateAccount))
-	mux.HandleFunc("DELETE /api/accounts", makeHTTPHandleFunc(as.handleDeleteAccount))
-	mux.HandleFunc("PUT /api/accounts", makeHTTPHandleFunc(as.handleTransfer))
+	mux.HandleFunc("GET /api/account", makeHTTPHandleFunc(as.handleGetAllAccount))
+	mux.HandleFunc("GET /api/account/{id}", makeHTTPHandleFunc(as.handleGetAccountById))
+	mux.HandleFunc("POST /api/account", makeHTTPHandleFunc(as.handleCreateAccount))
+	mux.HandleFunc("DELETE /api/account", makeHTTPHandleFunc(as.handleDeleteAccount))
+	mux.HandleFunc("PUT /api/account", makeHTTPHandleFunc(as.handleTransfer))
 
 	log.Println("JSON API server listening on port: ", as.listenAddr)
 	http.ListenAndServe(as.listenAddr, mux)
 }
 
 func (as *APIServer) handleGetAllAccount(w http.ResponseWriter, r *http.Request) error {
-	account := NewAccount("Jan", "Gould")
-	return WriteJSON(w, http.StatusOK, account)
+	var accounts []*Account
+	var err error
+
+	if accounts, err = as.store.GetAllAccounts(); err != nil {
+		return WriteJSON(w, http.StatusInternalServerError, nil)
+	}
+
+	return WriteJSON(w, http.StatusOK, accounts)
 }
 
-func (as *APIServer)  handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+func (as *APIServer)  handleGetAccountById(w http.ResponseWriter, r *http.Request) error {
 	id := r.PathValue("id")
 	return WriteJSON(w, http.StatusOK, id)
 }
 
 func (as *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	createAccRequest := new(CreateAccountRequest);
+	if err := json.NewDecoder(r.Body).Decode(createAccRequest); err != nil {
+		return err
+	}
+
+	account := NewAccount(createAccRequest.FirstName, createAccRequest.LastName);
+
+	if err := as.store.CreateAccount(account); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, account)
 }
 
 func (as *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {

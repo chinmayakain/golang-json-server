@@ -21,8 +21,8 @@ This repository contains a Go application that provides a JSON API for performin
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name
+   git clone https://github.com/chinmayakain/golang-json-server.git
+   cd golang-json-server
    ```
 
 2. Install dependencies

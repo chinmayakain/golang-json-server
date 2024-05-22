@@ -47,7 +47,7 @@ func (as *APIServer) Run() {
 	mux.HandleFunc("GET /api/account/{id}", makeHTTPHandleFunc(as.handleGetAccountById))
 	mux.HandleFunc("POST /api/account", makeHTTPHandleFunc(as.handleCreateAccount))
 	mux.HandleFunc("DELETE /api/account/{id}", makeHTTPHandleFunc(as.handleDeleteAccount))
-	mux.HandleFunc("PUT /api/account", makeHTTPHandleFunc(as.handleTransfer))
+	mux.HandleFunc("PUT /api/account/transfer", makeHTTPHandleFunc(as.handleTransfer))
 
 	log.Println("JSON API server listening on port: ", as.listenAddr)
 	http.ListenAndServe(as.listenAddr, mux)
@@ -84,6 +84,7 @@ func (as *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 
+	defer r.Body.Close()
 	account := NewAccount(createAccRequest.FirstName, createAccRequest.LastName)
 
 	if err := as.store.CreateAccount(account); err != nil {
@@ -107,7 +108,14 @@ func (as *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request)
 }
 
 func (as *APIServer) handleTransfer(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	transferReq := new(TransferReq)
+	if err := json.NewDecoder(r.Body).Decode(transferReq); err != nil {
+		return err
+	}
+
+	defer r.Body.Close()
+
+	return WriteJSON(w, http.StatusOK, transferReq)
 }
 
 func getId(r *http.Request) (int, error) {
